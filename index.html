@@ -2,18 +2,18 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Mini gra QR</title>
+  <title>Mini gra QR – etap 2</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
-    #reader { width: 100%; max-width: 400px; margin-top: 15px; }
-    button { padding: 10px 20px; font-size: 16px; }
+    #reader { width: 300px; margin-top: 15px; }
+    button { padding: 10px 20px; font-size: 16px; margin-top: 10px; }
     .info { margin-top: 10px; font-weight: bold; }
   </style>
 </head>
 <body>
 
-<h1>Mini gra QR</h1>
+<h1>Mini gra QR – etap 2</h1>
 
 <div id="screen-init">
   <p>Zeskanowałeś kod startowy.</p>
@@ -33,95 +33,103 @@
 </div>
 
 <script>
-const CODES = ["A", "B", "C"];
-let gameState = "INIT";
-let currentTarget = null;
-let lastTarget = null;
-let points = 0;
+  const params = new URLSearchParams(window.location.search);
+  const isStart = params.get("start") === "1";
 
-const startBtn = document.getElementById("startBtn");
-const targetInfo = document.getElementById("targetInfo");
-const status = document.getElementById("status");
-const pointsEl = document.getElementById("points");
-const screenInit = document.getElementById("screen-init");
-const screenGame = document.getElementById("screen-game");
-const screenEnd = document.getElementById("screen-end");
-const endMessage = document.getElementById("endMessage");
+  const CODES = ["A", "B", "C"];
+  let gameState = "INIT";
+  let currentTarget = null;
+  let lastTarget = null;
+  let points = 0;
+  let history = [];
+  let scored = new Set();
+  let timerId;
 
-let html5QrCode;
-let scanTimeout;
+  const startBtn = document.getElementById("startBtn");
+  const targetInfo = document.getElementById("targetInfo");
+  const status = document.getElementById("status");
+  const pointsEl = document.getElementById("points");
 
-// Funkcja losująca kolejny kod do zeskanowania
-function pickNextTarget() {
-  const available = CODES.filter(c => c !== lastTarget);
-  const next = available[Math.floor(Math.random() * available.length)];
-  lastTarget = next;
-  currentTarget = next;
-  targetInfo.innerText = `Zeskanuj kod: ${currentTarget}`;
-  status.innerText = "";
-  resetScanTimer();
-}
-
-// Funkcja kończąca grę
-function endGame(message) {
-  gameState = "FINISHED";
-  screenGame.style.display = "none";
-  screenEnd.style.display = "block";
-  endMessage.innerText = message;
-  if (html5QrCode) html5QrCode.stop();
-  clearTimeout(scanTimeout);
-}
-
-// Włączenie skanera
-function startScanner() {
-  html5QrCode = new Html5Qrcode("reader");
-  html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 300 },
-    text => {
-      const scannedText = text.toUpperCase();
-      // Obsługa kodu START
-      if (scannedText === "START" && gameState === "PLAYING") {
-        endGame("Gra zakończona kodem STOP.");
-        return;
+  function pickNextTarget() {
+    const available = CODES.filter(c => c !== lastTarget);
+    const next = available[Math.floor(Math.random() * available.length)];
+    lastTarget = next;
+    currentTarget = next;
+    targetInfo.innerText = `Zeskanuj kod: ${currentTarget}`;
+    
+    // Start odliczania 10 sekund do cofnięcia
+    if(timerId) clearTimeout(timerId);
+    timerId = setTimeout(() => {
+      status.innerText = "Cofanie do poprzedniego kodu...";
+      if(history.length > 0) {
+        lastTarget = history[history.length-1];
+        currentTarget = lastTarget;
+        targetInfo.innerText = `Zeskanuj kod: ${currentTarget}`;
       }
-      if (gameState !== "PLAYING") return;
+    }, 10000);
+  }
 
-      if (scannedText === currentTarget) {
-        points++;
-        pointsEl.innerText = points;
-        status.innerText = "DOBRZE!";
-        clearTimeout(scanTimeout); // zatrzymujemy licznik
-        if (points >= 5) {
-          endGame("Wygrana! Zdobyłeś 5 punktów.");
-        } else {
-          pickNextTarget();
+  function endGame(message) {
+    gameState = "FINISHED";
+    document.getElementById("screen-game").style.display = "none";
+    document.getElementById("screen-end").style.display = "block";
+    document.getElementById("endMessage").innerText = message;
+    if(html5QrCode) html5QrCode.stop();
+    if(timerId) clearTimeout(timerId);
+  }
+
+  let html5QrCode;
+
+  function startScanner() {
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 250 },
+      text => {
+        const url = new URL(text, window.location.href);
+        const code = url.searchParams.get("code");
+        const start = url.searchParams.get("start");
+
+        if (start === "1" && gameState === "PLAYING") {
+          endGame("Gra zakończona kodem STOP.");
+          return;
         }
-      } else {
-        status.innerText = "Szukaj dalej...";
-      }
-    },
-    () => {}
-  ).catch(err => alert("Nie udało się uruchomić skanera: " + err));
-}
 
-// Prosty timer 10 sekund na skan (do dalszej implementacji cofania)
-function resetScanTimer() {
-  clearTimeout(scanTimeout);
-  scanTimeout = setTimeout(() => {
-    status.innerText = "Czas minął! Wróć do poprzedniego kodu.";
-    // Tutaj później dodamy mechanikę cofania
-  }, 10000);
-}
+        if(gameState !== "PLAYING") return;
 
-// Obsługa startu gry
-startBtn.addEventListener("click", () => {
-  gameState = "PLAYING";
-  screenInit.style.display = "none";
-  screenGame.style.display = "block";
-  pickNextTarget();
-  startScanner();
-});
+        if(code === currentTarget) {
+          if(!scored.has(code)) {
+            points++;
+            scored.add(code);
+          }
+          pointsEl.innerText = points;
+          status.innerText = "DOBRZE!";
+          history.push(currentTarget);
+          if(points >= 5) {
+            endGame("Wygrana! Zdobyłeś 5 punktów.");
+          } else {
+            pickNextTarget();
+          }
+        } else {
+          status.innerText = "Szukaj dalej...";
+        }
+      },
+      () => {}
+    );
+  }
+
+  if(!isStart) {
+    document.body.innerHTML = "<h2>To nie jest kod startowy.</h2>";
+  }
+
+  startBtn.addEventListener("click", () => {
+    gameState = "PLAYING";
+    document.getElementById("screen-init").style.display = "none";
+    document.getElementById("screen-game").style.display = "block";
+    pickNextTarget();
+    startScanner();
+  });
+
 </script>
 
 </body>

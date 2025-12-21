@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Mini gra QR – etap 5</title>
+  <title>Mini gra QR – etap 6</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<h1>Mini gra QR – etap 5</h1>
+<h1>Mini gra QR – etap 6</h1>
 
 <div id="screen-init">
   <p>Zeskanowałeś kod startowy.</p>
@@ -25,6 +25,7 @@
   <p class="info" id="targetInfo"></p>
   <p class="info" id="status"></p>
   <p class="info" id="timerInfo"></p>
+  <p class="info" id="historyInfo">Historia:</p>
   <p>Punkty: <span id="points">0</span></p>
   <div id="reader"></div>
 </div>
@@ -52,6 +53,11 @@
   const status = document.getElementById("status");
   const pointsEl = document.getElementById("points");
 
+  function updateHistoryView() {
+    const historyLine = previousTargets.join(" → ");
+    document.getElementById("historyInfo").innerText = `Historia: ${historyLine}`;
+  }
+
   function startCountdown() {
     clearInterval(countdownInterval);
     countdown = 5;
@@ -69,12 +75,16 @@
 
   function handleTimeout() {
     if(gameState !== "PLAYING") return;
+
     if(previousTargets.length > 1) {
       previousTargets.pop(); // usuń aktualny
       currentTarget = previousTargets[previousTargets.length - 1];
       lastTarget = previousTargets[previousTargets.length - 2] || null;
+      if(points > 0) points--; // odejmujemy punkt przy cofnięciu
+      pointsEl.innerText = points;
       targetInfo.innerText = `Zeskanuj kod: ${currentTarget}`;
       status.innerText = "Cofanie do poprzedniego kodu...";
+      updateHistoryView();
       startCountdown();
     } else {
       endGame("Nie udało się zeskanować żadnego kodu. Gra zakończona.");
@@ -88,6 +98,8 @@
     currentTarget = next;
     previousTargets.push(currentTarget);
     targetInfo.innerText = `Zeskanuj kod: ${currentTarget}`;
+    status.innerText = "";
+    updateHistoryView();
     startCountdown();
   }
 

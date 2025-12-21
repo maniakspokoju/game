@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Mini gra QR – etap 2</title>
+  <title>Mini gra QR – etap 3</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<h1>Mini gra QR – etap 2</h1>
+<h1>Mini gra QR – etap 3</h1>
 
 <div id="screen-init">
   <p>Zeskanowałeś kod startowy.</p>
@@ -24,6 +24,7 @@
 <div id="screen-game" style="display:none;">
   <p class="info" id="targetInfo"></p>
   <p class="info" id="status"></p>
+  <p class="info" id="timerInfo"></p>
   <p>Punkty: <span id="points">0</span></p>
   <div id="reader"></div>
 </div>
@@ -43,12 +44,41 @@
   let points = 0;
   let history = [];
   let scored = new Set();
-  let timerId;
+  let countdown = 10;
+  let countdownInterval;
+  let html5QrCode;
 
   const startBtn = document.getElementById("startBtn");
   const targetInfo = document.getElementById("targetInfo");
   const status = document.getElementById("status");
   const pointsEl = document.getElementById("points");
+
+  function startCountdown() {
+    clearInterval(countdownInterval);
+    countdown = 10;
+    document.getElementById("timerInfo").innerText = `Pozostały czas: ${countdown}s`;
+
+    countdownInterval = setInterval(() => {
+      countdown--;
+      document.getElementById("timerInfo").innerText = `Pozostały czas: ${countdown}s`;
+      if(countdown <= 0) {
+        clearInterval(countdownInterval);
+        handleTimeout();
+      }
+    }, 1000);
+  }
+
+  function handleTimeout() {
+    if(history.length > 0) {
+      status.innerText = "Cofanie do poprzedniego kodu...";
+      currentTarget = history.pop();
+      lastTarget = history[history.length-1] || null;
+      targetInfo.innerText = `Zeskanuj kod: ${currentTarget}`;
+      startCountdown(); // restart zegara
+    } else {
+      endGame("Nie udało się zeskanować żadnego kodu. Gra zakończona.");
+    }
+  }
 
   function pickNextTarget() {
     const available = CODES.filter(c => c !== lastTarget);
@@ -56,17 +86,7 @@
     lastTarget = next;
     currentTarget = next;
     targetInfo.innerText = `Zeskanuj kod: ${currentTarget}`;
-    
-    // Start odliczania 10 sekund do cofnięcia
-    if(timerId) clearTimeout(timerId);
-    timerId = setTimeout(() => {
-      status.innerText = "Cofanie do poprzedniego kodu...";
-      if(history.length > 0) {
-        lastTarget = history[history.length-1];
-        currentTarget = lastTarget;
-        targetInfo.innerText = `Zeskanuj kod: ${currentTarget}`;
-      }
-    }, 10000);
+    startCountdown();
   }
 
   function endGame(message) {
@@ -75,10 +95,8 @@
     document.getElementById("screen-end").style.display = "block";
     document.getElementById("endMessage").innerText = message;
     if(html5QrCode) html5QrCode.stop();
-    if(timerId) clearTimeout(timerId);
+    clearInterval(countdownInterval);
   }
-
-  let html5QrCode;
 
   function startScanner() {
     html5QrCode = new Html5Qrcode("reader");

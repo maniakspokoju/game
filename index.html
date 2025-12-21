@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <title>Mini gra QR</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #reader { width: 300px; margin-top: 15px; }
+    button { padding: 10px 20px; font-size: 16px; }
+    .info { margin-top: 10px; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h1>Mini gra QR</h1>
+
+<div id="screen-init">
+  <p>Zeskanowałeś kod startowy.</p>
+  <p>Czy jesteś gotowy?</p>
+  <button id="startBtn">START</button>
+</div>
+
+<div id="screen-game" style="display:none;">
+  <p class="info" id="targetInfo"></p>
+  <p class="info" id="status"></p>
+  <p>Punkty: <span id="points">0</span></p>
+  <div id="reader"></div>
+</div>
+
+<div id="screen-end" style="display:none;">
+  <h2 id="endMessage"></h2>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const isStart = params.get("start") === "1";
+
+  const CODES = ["A", "B", "C"];
+  let gameState = "INIT";
+  let currentTarget = null;
+  let lastTarget = null;
+  let points = 0;
+
+  const startBtn = document.getElementById("startBtn");
+  const targetInfo = document.getElementById("targetInfo");
+  const status = document.getElementById("status");
+  const pointsEl = document.getElementById("points");
+
+  function pickNextTarget() {
+    const available = CODES.filter(c => c !== lastTarget);
+    const next = available[Math.floor(Math.random() * available.length)];
+    lastTarget = next;
+    currentTarget = next;
+    targetInfo.innerText = `Zeskanuj kod: ${currentTarget}`;
+  }
+
+  function endGame(message) {
+    gameState = "FINISHED";
+    document.getElementById("screen-game").style.display = "none";
+    document.getElementById("screen-end").style.display = "block";
+    document.getElementById("endMessage").innerText = message;
+    html5QrCode.stop();
+  }
+
+  let html5QrCode;
+
+  function startScanner() {
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 250 },
+      text => {
+        const url = new URL(text, window.location.href);
+        const code = url.searchParams.get("code");
+        const start = url.searchParams.get("start");
+
+        if (start === "1" && gameState === "PLAYING") {
+          endGame("Gra zakończona kodem STOP.");
+          return;
+        }
+
+        if (gameState !== "PLAYING") return;
+
+        if (code === currentTarget) {
+          points++;
+          pointsEl.innerText = points;
+          status.innerText = "DOBRZE!";
+          if (points >= 5) {
+            endGame("Wygrana! Zdobyłeś 5 punktów.");
+          } else {
+            pickNextTarget();
+          }
+        } else {
+          status.innerText = "Szukaj dalej...";
+        }
+      },
+      () => {}
+    );
+  }
+
+  if (!isStart) {
+    document.body.innerHTML = "<h2>To nie jest kod startowy.</h2>";
+  }
+
+  startBtn.addEventListener("click", () => {
+    gameState = "PLAYING";
+    document.getElementById("screen-init").style.display = "none";
+    document.getElementById("screen-game").style.display = "block";
+    pickNextTarget();
+    startScanner();
+  });
+</script>
+
+</body>
+</html>

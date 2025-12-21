@@ -6,138 +6,97 @@
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
-    #qr-number { font-size: 24px; font-weight: bold; margin: 10px 0; }
-    #message { color: red; margin: 10px 0; }
-    #points { margin: 10px 0; font-weight: bold; }
-    button { padding: 5px 10px; margin: 5px 0; }
-    #reader { width: 300px; margin-top: 10px; display: none; }
+    #scanner { display: none; margin-top: 10px; }
+    #message { font-weight: bold; margin-top: 10px; }
+    #start-btn { padding: 10px 20px; margin-top: 10px; }
   </style>
 </head>
 <body>
+  <h1>Mini Gra QR</h1>
+  <div id="setup">
+    <p>Czy jesteś gotowy?</p>
+    <button id="start-btn">Start gry</button>
+  </div>
 
-<h1>Mini Gra QR</h1>
+  <div id="game" style="display:none;">
+    <p id="next-code">Kolejny kod do zeskanowania: </p>
+    <div id="scanner"></div>
+    <p id="message"></p>
+    <p>Punkty: <span id="score">0</span></p>
+  </div>
 
-<div id="status">Gotowy do startu?</div>
-<button id="start-btn">Start</button>
+  <script>
+    const codes = ['A','B','C']; // dostępne kody QR w grze
+    let activeCode = null;        // aktualny kod do zeskanowania
+    let history = [];             // historia ruchów
+    let score = 0;                // punkty gracza
+    let scanning = false;         // flaga aktywnego skanera
+    const maxPoints = 5;          // ile punktów zdobywamy do końca gry
+    const startCode = "START";    // kod startowy/stop
+    const scannerDiv = document.getElementById("scanner");
+    const messageEl = document.getElementById("message");
+    const nextCodeEl = document.getElementById("next-code");
+    const scoreEl = document.getElementById("score");
 
-<div id="qr-number"></div>
-<div id="message"></div>
-<div id="points">Punkty: 0</div>
-
-<button id="scan-btn" style="display:none;">Otwórz aparat / Skanuj QR</button>
-<div id="reader"></div>
-
-<script>
-const allCodes = ["A", "B", "C"];
-let activeCode = null;
-let history = [];
-let currentIndex = -1;
-let scored = new Set();
-let points = 0;
-let timer = null;
-const SCAN_TIME = 10000; // 10 sekund
-const MAX_POINTS = 5;
-
-const statusDiv = document.getElementById("status");
-const qrDiv = document.getElementById("qr-number");
-const messageDiv = document.getElementById("message");
-const pointsDiv = document.getElementById("points");
-const startBtn = document.getElementById("start-btn");
-const scanBtn = document.getElementById("scan-btn");
-const readerDiv = document.getElementById("reader");
-
-function startGame() {
-  history = [];
-  scored = new Set();
-  points = 0;
-  currentIndex = -1;
-  pointsDiv.innerText = `Punkty: ${points}`;
-  statusDiv.innerText = "Gra wystartowała!";
-  nextCode();
-  scanBtn.style.display = "inline-block";
-}
-
-function nextCode() {
-  clearTimeout(timer);
-
-  // Losowanie kolejnego kodu różnego od aktualnego
-  const available = allCodes.filter(c => c !== activeCode);
-  activeCode = available[Math.floor(Math.random() * available.length)];
-
-  // Dodanie do historii
-  history.push(activeCode);
-  currentIndex = history.length - 1;
-
-  qrDiv.innerText = `Skanuj kod: ${activeCode}`;
-  messageDiv.innerText = "";
-  
-  // Start 10s timera
-  timer = setTimeout(() => {
-    messageDiv.innerText = "Czas minął! Wracasz do poprzedniego kodu.";
-    backToPreviousCode();
-  }, SCAN_TIME);
-}
-
-function backToPreviousCode() {
-  if (currentIndex > 0) {
-    currentIndex--;
-    activeCode = history[currentIndex];
-    qrDiv.innerText = `Wracasz do kodu: ${activeCode}`;
-    messageDiv.innerText = "Skanuj ponownie!";
-    timer = setTimeout(() => {
-      messageDiv.innerText = "Czas minął ponownie! Wracasz jeszcze dalej.";
-      backToPreviousCode();
-    }, SCAN_TIME);
-  } else {
-    qrDiv.innerText = "Jesteś na początku gry.";
-    messageDiv.innerText = "";
-  }
-}
-
-function handleScan(code) {
-  if (code === activeCode) {
-    clearTimeout(timer);
-    messageDiv.innerText = "Brawo! Poprawny kod.";
-    if (!scored.has(code)) {
-      points++;
-      scored.add(code);
-      pointsDiv.innerText = `Punkty: ${points}`;
+    // Funkcja losująca kolejny kod (nie taki sam jak poprzedni)
+    function pickNextCode() {
+      let options = codes.filter(c => c !== activeCode);
+      activeCode = options[Math.floor(Math.random() * options.length)];
+      nextCodeEl.innerText = "Kolejny kod do zeskanowania: " + activeCode;
     }
-    if (points >= MAX_POINTS || code === "START") {
-      endGame();
-    } else {
-      nextCode();
+
+    function updateScore() {
+      scoreEl.innerText = score;
     }
-  } else {
-    messageDiv.innerText = "Szukaj dalej...";
-  }
-}
 
-function endGame() {
-  clearTimeout(timer);
-  qrDiv.innerText = "";
-  scanBtn.style.display = "none";
-  messageDiv.innerText = `Koniec gry! Zdobyte punkty: ${points}`;
-}
+    // Start gry
+    document.getElementById("start-btn").addEventListener("click", () => {
+      document.getElementById("setup").style.display = "none";
+      document.getElementById("game").style.display = "block";
+      pickNextCode();
+      startScanner();
+    });
 
-// --- Skaner ---
-function startScanner() {
-  readerDiv.style.display = "block";
-  const html5QrCode = new Html5Qrcode("reader");
-  html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 250 },
-    qrCodeMessage => {
-      handleScan(qrCodeMessage);
-    },
-    errorMessage => { /* ignorujemy błędy */ }
-  ).catch(err => alert("Nie udało się uruchomić skanera: " + err));
-}
+    function startScanner() {
+      if (scanning) return;
+      scanning = true;
+      scannerDiv.style.display = "block";
 
-// --- Eventy ---
-startBtn.addEventListener("click", startGame);
-scanBtn.addEventListener("click", startScanner);
-</script>
+      const html5QrCode = new Html5Qrcode("scanner");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        qrMessage => {
+          handleScan(qrMessage.toUpperCase());
+        },
+        errorMessage => {}
+      ).catch(err => alert("Nie udało się uruchomić skanera: " + err));
+    }
 
+    function handleScan(scanned) {
+      if (scanned === startCode) {
+        messageEl.innerText = "Koniec gry! Zdobyte punkty: " + score;
+        scannerDiv.style.display = "none";
+        scanning = false;
+        return;
+      }
+
+      if (scanned === activeCode) {
+        score++;
+        history.push(activeCode);
+        updateScore();
+        if (score >= maxPoints) {
+          messageEl.innerText = "Gratulacje! Zdobyłeś " + score + " punktów!";
+          scannerDiv.style.display = "none";
+          scanning = false;
+          return;
+        }
+        pickNextCode();
+        messageEl.innerText = "Poprawnie! Szukaj kolejnego kodu.";
+      } else {
+        messageEl.innerText = "Skanujesz niewłaściwy kod, szukaj dalej...";
+      }
+    }
+  </script>
 </body>
 </html>

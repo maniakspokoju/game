@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
-  <title>Mini gra QR – etap 4.1</title>
+  <title>Mini gra QR – etap 5</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
@@ -13,7 +13,7 @@
 </head>
 <body>
 
-<h1>Mini gra QR – etap 4</h1>
+<h1>Mini gra QR – etap 5</h1>
 
 <div id="screen-init">
   <p>Zeskanowałeś kod startowy.</p>
@@ -42,7 +42,6 @@
   let currentTarget = null;
   let lastTarget = null;
   let points = 0;
-  let scored = new Set();
   let previousTargets = [];
   let countdown = 5;
   let countdownInterval;
@@ -69,7 +68,8 @@
   }
 
   function handleTimeout() {
-    if(previousTargets.length > 1) { // ostatni kod to aktualny, cofamy do poprzedniego
+    if(gameState !== "PLAYING") return;
+    if(previousTargets.length > 1) {
       previousTargets.pop(); // usuń aktualny
       currentTarget = previousTargets[previousTargets.length - 1];
       lastTarget = previousTargets[previousTargets.length - 2] || null;
@@ -86,7 +86,7 @@
     const next = available[Math.floor(Math.random() * available.length)];
     lastTarget = next;
     currentTarget = next;
-    previousTargets.push(currentTarget); // zapis dla cofania
+    previousTargets.push(currentTarget);
     targetInfo.innerText = `Zeskanuj kod: ${currentTarget}`;
     startCountdown();
   }
@@ -118,10 +118,7 @@
         if(gameState !== "PLAYING") return;
 
         if(code === currentTarget) {
-          if(!scored.has(code)) {
-            points++;
-            scored.add(code);
-          }
+          points++;
           pointsEl.innerText = points;
           status.innerText = "DOBRZE!";
           if(points >= 5) {
@@ -153,4 +150,3 @@
 
 </body>
 </html>
-

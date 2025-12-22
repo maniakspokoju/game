@@ -10,13 +10,13 @@
   #nextCode { font-size: 48px; font-weight: bold; color: red; margin:10px; }
   #history { font-size: 32px; margin: 10px; }
   #points { font-size: 32px; margin: 10px; }
-  button { font-size: 24px; margin: 5px; padding: 10px 20px; }
+  button { font-size: 32px; margin: 5px; padding: 30px 30px; }
   #quiz { margin: 20px; }
 </style>
 </head>
 <body>
 
-<h1>Gra QR - 8.8.1</h1>
+<h1>Gra QR - 8.8.2</h1>
 
 <div id="screen-init">
   <p>Zeskanowałeś kod startowy. Czy jesteś gotowy?</p>
@@ -139,6 +139,10 @@ function onScanSuccess(decodedText){
     historyIndex++;
     history[historyIndex] = currentCode; // zapisujemy aktualny skan w historii
     pointsEl.innerText = `Punkty: ${points}`;
+
+    updateHistoryDisplay();       // historia od razu aktualna
+    generateNextCode();           // ustawiamy od razu kolejny kod, który pojawi się po quizie
+    
     nextRound();
   }
 }
@@ -150,7 +154,6 @@ function nextRound(){
     endGame("Wygrana! Zdobyłeś 5 punktów.");
     return;
   }
-  generateNextCode();
   generateQuiz();
 }
 
@@ -189,7 +192,7 @@ function stopTimer(){
 
 // HISTORIA
 function updateHistoryDisplay(){
-  historyEl.innerText = "Historia: " + history.slice(0, historyIndex+1).join(", ");
+  historyEl.innerText = "Historia: " + history.slice(0, historyIndex+1).join(" > ");
 }
 
 // KONIEC GRY
@@ -209,6 +212,7 @@ function evalExpr(a,op,b){if(op==="/"&&b===0)return Infinity; return eval(`${a}$
 
 </body>
 </html>
+
 
 
 

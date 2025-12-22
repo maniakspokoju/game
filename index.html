@@ -2,201 +2,196 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Gra QR + Quiz - etap 8.1</title>
+<title>Gra QR z Quizem</title>
+<script src="https://unpkg.com/html5-qrcode"></script>
 <style>
-  body { font-family: Arial; text-align: center; }
+  body { font-family: Arial; text-align: center; padding: 20px; }
   #timer { font-size: 48px; margin: 10px; }
-  #nextCode { font-size: 48px; font-weight: bold; color: red; }
+  #nextCode { font-size: 48px; font-weight: bold; color: red; margin:10px; }
   #history { font-size: 32px; margin: 10px; }
-  button { font-size: 24px; margin: 5px; }
+  #points { font-size: 32px; margin: 10px; }
+  button { font-size: 24px; margin: 5px; padding: 10px 20px; }
+  #quiz { margin: 20px; }
 </style>
 </head>
 <body>
 
-<h1>Gra QR + Quiz - etap 8.1</h1>
+<h1>Gra QR</h1>
 
-<div id="timer">--</div>
-<div id="nextCode"></div>
-<div id="history"></div>
-<div id="points"></div>
+<div id="screen-init">
+  <p>Zeskanowałeś kod startowy. Czy jesteś gotowy?</p>
+  <button id="startBtn">START</button>
+</div>
 
-<div id="quiz"></div>
-<div id="scanner" style="display:none;">
-  <p>📷 Symulacja skanu QR</p>
-  <button onclick="scanCorrect()">Zeskanuj poprawny kod</button>
+<div id="screen-game" style="display:none;">
+  <div id="timer">--</div>
+  <div id="nextCode"></div>
+  <div id="history"></div>
+  <div id="points">Punkty: 0</div>
+  <div id="quiz"></div>
+  <div id="reader" style="margin-top: 20px;"></div>
+</div>
+
+<div id="screen-end" style="display:none;">
+  <h2 id="endMessage"></h2>
 </div>
 
 <script>
-/* =======================
-   STAN GRY
-======================= */
-let gameState = "QUIZ"; // QUIZ | SCAN | SUCCESS | FAIL | END
+const CODES = ["A","B","C"];
+let history = [];
+let currentCode = null;
+let lastCode = null;
 let points = 0;
 let maxPoints = 5;
 
-let codes = ["A","B","C","D","E","F"];
-let history = [];
-let currentCode = null;
-
+let gameState = "INIT"; // INIT | QUIZ | SCAN | END
+let html5QrCode = null;
 let timer = null;
-let timeLeft = 5;
+let timeLeft = 0;
 
-/* =======================
-   START
-======================= */
-startGame();
+const startBtn = document.getElementById("startBtn");
+const screenInit = document.getElementById("screen-init");
+const screenGame = document.getElementById("screen-game");
+const screenEnd = document.getElementById("screen-end");
+const nextCodeEl = document.getElementById("nextCode");
+const historyEl = document.getElementById("history");
+const pointsEl = document.getElementById("points");
+const quizEl = document.getElementById("quiz");
+const endMessageEl = document.getElementById("endMessage");
 
-function startGame() {
-  nextRound();
-}
-
-/* =======================
-   RUNDA
-======================= */
-function nextRound() {
-  stopTimer();
-  generateNextCode();
-  generateQuiz();
+// START GRY
+startBtn.addEventListener("click", () => {
   gameState = "QUIZ";
-  updateUI();
+  screenInit.style.display = "none";
+  screenGame.style.display = "block";
+  nextRound();
+});
+
+// GENEROWANIE NASTĘPNEGO KODU
+function generateNextCode() {
+  const available = CODES.filter(c => c !== lastCode);
+  currentCode = available[Math.floor(Math.random() * available.length)];
+  lastCode = currentCode;
 }
 
-/* =======================
-   QUIZ
-======================= */
+// QUIZ
 function generateQuiz() {
   const a = rand(), b = rand(), c = rand(), d = rand();
   const ops = ["+","-","*","/"];
-  const op1 = ops[rand(0,3)], op2 = ops[rand(0,3)];
+  const op1 = ops[rand(0,3)];
+  const op2 = ops[rand(0,3)];
 
   const left = evalExpr(a,op1,b);
   const right = evalExpr(c,op2,d);
 
-  let correct;
-  if (left > right) correct = ">";
-  else if (left < right) correct = "<";
-  else correct = "=";
+  const correct = left > right ? ">" : "<";
 
-  const quiz = document.getElementById("quiz");
-  quiz.innerHTML = `
+  quizEl.innerHTML = `
     <h2>${a} ${op1} ${b} ? ${c} ${op2} ${d}</h2>
-    <button onclick="answerQuiz('<', '${correct}')">&lt;</button>
-    <button onclick="answerQuiz('=', '${correct}')">=</button>
-    <button onclick="answerQuiz('>', '${correct}')">&gt;</button>
+    <button onclick="answerQuiz('<')">&lt;</button>
+    <button onclick="answerQuiz('>')">&gt;</button>
   `;
-}
 
-function answerQuiz(choice, correct) {
-  if (choice === correct) {
-    startScanPhase();
-  } else {
-    fail();
+  function answerQuiz(choice){
+    if(choice === correct){
+      startScanPhase();
+    } else {
+      failRound();
+    }
   }
+  window.answerQuiz = answerQuiz; // expose function
 }
 
-/* =======================
-   SKAN
-======================= */
+// SCAN
 function startScanPhase() {
   gameState = "SCAN";
-  document.getElementById("quiz").innerHTML = "";
-  document.getElementById("scanner").style.display = "block";
-  startTimer(5);
-  updateUI();
+  quizEl.innerHTML = "";
+  nextCodeEl.innerText = `Skanuj kod: ${currentCode}`;
+  startTimer(10);
+  if(html5QrCode) html5QrCode.stop().catch(()=>{});
+  html5QrCode = new Html5Qrcode("reader");
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    onScanSuccess,
+    ()=>{}
+  );
 }
 
-function scanCorrect() {
-  if (gameState !== "SCAN") return;
-  success();
-}
+function onScanSuccess(decodedText){
+  const url = new URL(decodedText, window.location.href);
+  const code = url.searchParams.get("code");
+  const start = url.searchParams.get("start");
 
-/* =======================
-   SUKCES / FAIL
-======================= */
-function success() {
-  stopTimer();
-  gameState = "SUCCESS";
-  history.push(currentCode);
-  points++;
-
-  if (points >= maxPoints) {
-    gameState = "END";
-    updateUI();
+  if(start==="1"){
+    endGame("Gra zakończona kodem STOP.");
     return;
   }
 
-  setTimeout(nextRound, 800);
-}
+  if(gameState !== "SCAN") return;
 
-function fail() {
-  stopTimer();
-  gameState = "FAIL";
-  if (history.length > 0) {
-    history.pop();
-    points--;
+  if(code === currentCode){
+    points++;
+    history.push(currentCode);
+    pointsEl.innerText = `Punkty: ${points}`;
+    nextRound();
   }
-  setTimeout(nextRound, 800);
 }
 
-/* =======================
-   TIMER
-======================= */
-function startTimer(seconds) {
+// KOLEJNA RUNDA
+function nextRound(){
+  stopTimer();
+  if(points>=maxPoints){
+    endGame("Wygrana! Zdobyłeś 5 punktów.");
+    return;
+  }
+  generateNextCode();
+  generateQuiz();
+}
+
+// FAIL (zła odpowiedź w quizie lub timeout)
+function failRound(){
+  stopTimer();
+  points = Math.max(0, points-1);
+  pointsEl.innerText = `Punkty: ${points}`;
+  if(history.length>0){
+    lastCode = currentCode;
+    currentCode = history.pop(); // cofamy do poprzedniego skanu
+  }
+  startScanPhase();
+}
+
+// TIMER
+function startTimer(seconds){
   timeLeft = seconds;
   document.getElementById("timer").textContent = timeLeft;
-  timer = setInterval(() => {
+  timer = setInterval(()=>{
     timeLeft--;
     document.getElementById("timer").textContent = timeLeft;
-    if (timeLeft <= 0) fail();
-  }, 1000);
+    if(timeLeft<=0){
+      failRound();
+    }
+  },1000);
 }
 
-function stopTimer() {
+function stopTimer(){
   clearInterval(timer);
-  timer = null;
-  document.getElementById("timer").textContent = "--";
+  timer=null;
 }
 
-/* =======================
-   UI
-======================= */
-function updateUI() {
-  document.getElementById("nextCode").textContent =
-    gameState === "SCAN" ? `Skanuj: ${currentCode}` : "";
-
-  document.getElementById("history").textContent =
-    "Historia: " + history.join(" > ");
-
-  document.getElementById("points").textContent =
-    "Punkty: " + points;
-
-  document.getElementById("scanner").style.display =
-    gameState === "SCAN" ? "block" : "none";
-
-  if (gameState === "END") {
-    alert("KONIEC GRY");
-  }
+// KONIEC GRY
+function endGame(msg){
+  gameState="END";
+  stopTimer();
+  if(html5QrCode) html5QrCode.stop().catch(()=>{});
+  screenGame.style.display="none";
+  screenEnd.style.display="block";
+  endMessageEl.innerText = msg;
 }
 
-/* =======================
-   POMOCNICZE
-======================= */
-function generateNextCode() {
-  let next;
-  do {
-    next = codes[Math.floor(Math.random()*codes.length)];
-  } while (next === currentCode);
-  currentCode = next;
-}
-
-function rand(min=1,max=9) {
-  return Math.floor(Math.random()*(max-min+1))+min;
-}
-
-function evalExpr(a,op,b) {
-  if (op === "/" && b === 0) return Infinity;
-  return eval(`${a}${op}${b}`);
-}
+// POMOCNICZE
+function rand(min=1,max=9){return Math.floor(Math.random()*(max-min+1))+min;}
+function evalExpr(a,op,b){if(op==="/"&&b===0)return Infinity; return eval(`${a}${op}${b}`);}
 </script>
 
 </body>

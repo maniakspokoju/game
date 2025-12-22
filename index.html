@@ -109,6 +109,9 @@ function startScanPhase() {
   gameState = "SCAN";
   quizEl.innerHTML = "";
   document.getElementById("reader").style.display = "block";
+  if(historyIndex < points) {
+    generateNextCode(); // ustawiamy nowy kod dopiero teraz
+  }
   nextCodeEl.innerText = `Skanuj kod: ${currentCode}`;
   updateHistoryDisplay();
   startTimer(5);
@@ -141,7 +144,6 @@ function onScanSuccess(decodedText){
     pointsEl.innerText = `Punkty: ${points}`;
 
     updateHistoryDisplay();       // historia od razu aktualna
-    generateNextCode();           // ustawiamy od razu kolejny kod, który pojawi się po quizie
     
     nextRound();
   }
@@ -212,6 +214,7 @@ function evalExpr(a,op,b){if(op==="/"&&b===0)return Infinity; return eval(`${a}$
 
 </body>
 </html>
+
 
 
 

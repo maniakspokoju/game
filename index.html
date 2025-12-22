@@ -16,7 +16,7 @@
 </head>
 <body>
 
-<h1>Gra QR - 8.8</h1>
+<h1>Gra QR - 8.8.1</h1>
 
 <div id="screen-init">
   <p>Zeskanowałeś kod startowy. Czy jesteś gotowy?</p>
@@ -77,6 +77,7 @@ function generateNextCode() {
 
 // QUIZ
 function generateQuiz() {
+  document.getElementById("reader").style.display = "none";
   const a = rand(), b = rand(), c = rand(), d = rand();
   const ops = ["+","-","*","/"];
   const op1 = ops[rand(0,3)];
@@ -107,6 +108,7 @@ function generateQuiz() {
 function startScanPhase() {
   gameState = "SCAN";
   quizEl.innerHTML = "";
+  document.getElementById("reader").style.display = "block";
   nextCodeEl.innerText = `Skanuj kod: ${currentCode}`;
   updateHistoryDisplay();
   startTimer(5);
@@ -207,6 +209,7 @@ function evalExpr(a,op,b){if(op==="/"&&b===0)return Infinity; return eval(`${a}$
 
 </body>
 </html>
+
 
 
 

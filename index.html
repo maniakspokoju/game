@@ -16,7 +16,7 @@
 
 <body>
 
-<h1>Mini gra QR - 9.1.2</h1>
+<h1>Mini gra QR - 9.1.3</h1>
 
 <div id="screen-init">
   <p>Zeskanowałeś kod startowy.</p>
@@ -133,7 +133,7 @@ function startScanPhase() {
     html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start(
       { facingMode: "environment" },
-      { fps: 10, qrbox: 150 },
+      { fps: 10, qrbox: 250 },
       onScan,
       ()=>{}
     );
@@ -238,6 +238,7 @@ function evalSafe(a,op,b) {
 
 </body>
 </html>
+
 
 
 

@@ -66,6 +66,7 @@ const reader = document.getElementById("reader");
 /* ===================== HISTORIA ===================== */
 
 function updateHistory() {
+  const visibleHistory = previousTargets.slice(0, -1);
   historyInfo.innerText = "Historia: " + previousTargets.join(" → ");
 }
 
@@ -227,3 +228,4 @@ function evalSafe(a,op,b) {
 
 </body>
 </html>
+

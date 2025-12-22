@@ -16,7 +16,7 @@
 </head>
 <body>
 
-<h1>Gra QR - 8.8.3</h1>
+<h1>Gra QR - 8.8.4</h1>
 
 <div id="screen-init">
   <p>Zeskanowałeś kod startowy. Czy jesteś gotowy?</p>
@@ -109,9 +109,6 @@ function startScanPhase() {
   gameState = "SCAN";
   quizEl.innerHTML = "";
   document.getElementById("reader").style.display = "block";
-  if(historyIndex < points) {
-    generateNextCode(); // ustawiamy nowy kod dopiero teraz
-  }
   nextCodeEl.innerText = `Skanuj kod: ${currentCode}`;
   updateHistoryDisplay();
   startTimer(5);
@@ -143,10 +140,10 @@ function onScanSuccess(decodedText){
     history[historyIndex] = currentCode; // zapisujemy aktualny skan w historii
     pointsEl.innerText = `Punkty: ${points}`;
 
-    updateHistoryDisplay();       // historia od razu aktualna
-    
-    nextRound();
-  }
+   stopTimer();
+    html5QrCode.stop().then(() => {
+    nextRound(); // teraz przechodzimy do quizu dla kolejnego kodu
+  });
 }
 
 // KOLEJNA RUNDA
@@ -156,6 +153,8 @@ function nextRound(){
     endGame("Wygrana! Zdobyłeś 5 punktów.");
     return;
   }
+  generateNextCode(); // generujemy nowy kod dopiero tutaj
+  updateHistoryDisplay(); // historia od razu pokazuje zeskanowane kody
   generateQuiz();
 }
 
@@ -214,6 +213,7 @@ function evalExpr(a,op,b){if(op==="/"&&b===0)return Infinity; return eval(`${a}$
 
 </body>
 </html>
+
 
 
 

@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Gra QR z Quizem</title>
+<title>Gra QR z Quizem - Poprawiona</title>
 <script src="https://unpkg.com/html5-qrcode"></script>
 <style>
   body { font-family: Arial; text-align: center; padding: 20px; }
@@ -39,6 +39,7 @@
 <script>
 const CODES = ["A","B","C"];
 let history = [];
+let historyIndex = -1;
 let currentCode = null;
 let lastCode = null;
 let points = 0;
@@ -107,12 +108,13 @@ function startScanPhase() {
   gameState = "SCAN";
   quizEl.innerHTML = "";
   nextCodeEl.innerText = `Skanuj kod: ${currentCode}`;
+  updateHistoryDisplay();
   startTimer(10);
   if(html5QrCode) html5QrCode.stop().catch(()=>{});
   html5QrCode = new Html5Qrcode("reader");
   html5QrCode.start(
     { facingMode: "environment" },
-    { fps: 10, qrbox: 250 },
+    { fps: 10, qrbox: 150 },
     onScanSuccess,
     ()=>{}
   );
@@ -132,7 +134,8 @@ function onScanSuccess(decodedText){
 
   if(code === currentCode){
     points++;
-    history.push(currentCode);
+    historyIndex++;
+    history[historyIndex] = currentCode; // zapisujemy aktualny skan w historii
     pointsEl.innerText = `Punkty: ${points}`;
     nextRound();
   }
@@ -154,11 +157,14 @@ function failRound(){
   stopTimer();
   points = Math.max(0, points-1);
   pointsEl.innerText = `Punkty: ${points}`;
-  if(history.length>0){
-    lastCode = currentCode;
-    currentCode = history.pop(); // cofamy do poprzedniego skanu
+
+  if(historyIndex>=0){
+    currentCode = history[historyIndex]; // cofamy do poprzedniego skanu
+    historyIndex--; // ustawienie indeksu tak, aby kolejny sukces posuwał go prawidłowo
+    startScanPhase();
+  } else {
+    endGame("Gra zakończona, nie udało się zdobyć punktów.");
   }
-  startScanPhase();
 }
 
 // TIMER
@@ -177,6 +183,11 @@ function startTimer(seconds){
 function stopTimer(){
   clearInterval(timer);
   timer=null;
+}
+
+// HISTORIA
+function updateHistoryDisplay(){
+  historyEl.innerText = "Historia: " + history.slice(0, historyIndex+1).join(", ");
 }
 
 // KONIEC GRY

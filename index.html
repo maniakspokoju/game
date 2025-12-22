@@ -16,7 +16,7 @@
 </head>
 <body>
 
-<h1>Gra QR</h1>
+<h1>Gra QR - 8.3</h1>
 
 <div id="screen-init">
   <p>Zeskanowałeś kod startowy. Czy jesteś gotowy?</p>
@@ -109,12 +109,12 @@ function startScanPhase() {
   quizEl.innerHTML = "";
   nextCodeEl.innerText = `Skanuj kod: ${currentCode}`;
   updateHistoryDisplay();
-  startTimer(10);
+  startTimer(5);
   if(html5QrCode) html5QrCode.stop().catch(()=>{});
   html5QrCode = new Html5Qrcode("reader");
   html5QrCode.start(
     { facingMode: "environment" },
-    { fps: 10, qrbox: 150 },
+    { fps: 10, qrbox: 250 },
     onScanSuccess,
     ()=>{}
   );
@@ -207,3 +207,4 @@ function evalExpr(a,op,b){if(op==="/"&&b===0)return Infinity; return eval(`${a}$
 
 </body>
 </html>
+

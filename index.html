@@ -2,34 +2,36 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Gra QR z Quizem - Poprawiona</title>
+<title>Mini gra QR – quiz + skan</title>
 <script src="https://unpkg.com/html5-qrcode"></script>
+
 <style>
-  body { font-family: Arial; text-align: center; padding: 20px; }
-  #timer { font-size: 48px; margin: 10px; }
-  #nextCode { font-size: 48px; font-weight: bold; color: red; margin:10px; }
-  #history { font-size: 32px; margin: 10px; }
-  #points { font-size: 32px; margin: 10px; }
-  button { font-size: 32px; margin: 5px; padding: 30px 30px; }
-  #quiz { margin: 20px; }
+  body { font-family: Arial, sans-serif; padding: 20px; }
+  #reader { width: 260px; margin-top: 10px; display:none; }
+  button { padding: 10px 18px; font-size: 18px; margin: 5px; }
+  .info { margin-top: 10px; font-weight: bold; font-size: 18px; }
+  .big { font-size: 22px; }
 </style>
 </head>
+
 <body>
 
-<h1>Gra QR - 8.8.4</h1>
+<h1>Mini gra QR - 9.0</h1>
 
 <div id="screen-init">
-  <p>Zeskanowałeś kod startowy. Czy jesteś gotowy?</p>
+  <p>Zeskanowałeś kod startowy.</p>
   <button id="startBtn">START</button>
 </div>
 
 <div id="screen-game" style="display:none;">
-  <div id="timer">--</div>
-  <div id="nextCode"></div>
-  <div id="history"></div>
-  <div id="points">Punkty: 0</div>
-  <div id="quiz"></div>
-  <div id="reader" style="margin-top: 20px;"></div>
+  <p class="info big" id="targetInfo"></p>
+  <p class="info" id="status"></p>
+  <p class="info" id="timerInfo"></p>
+  <p class="info" id="historyInfo">Historia:</p>
+  <p class="info">Punkty: <span id="points">0</span></p>
+
+  <div id="quizBox"></div>
+  <div id="reader"></div>
 </div>
 
 <div id="screen-end" style="display:none;">
@@ -37,190 +39,191 @@
 </div>
 
 <script>
-const CODES = ["A","B","C"];
-let history = [];
-let historyIndex = -1;
-let currentCode = null;
-let lastCode = null;
-let points = 0;
-let maxPoints = 5;
+/* ===================== PODSTAWY ===================== */
 
-let gameState = "INIT"; // INIT | QUIZ | SCAN | END
-let html5QrCode = null;
-let timer = null;
-let timeLeft = 0;
+const CODES = ["A","B","C"];
+let gameState = "INIT"; // INIT | QUIZ | SCAN | FINISHED
+
+let currentTarget = null;
+let previousTargets = [];
+let points = 0;
+
+let countdown = 5;
+let countdownInterval;
+let html5QrCode;
+
+/* ===================== ELEMENTY ===================== */
 
 const startBtn = document.getElementById("startBtn");
-const screenInit = document.getElementById("screen-init");
-const screenGame = document.getElementById("screen-game");
-const screenEnd = document.getElementById("screen-end");
-const nextCodeEl = document.getElementById("nextCode");
-const historyEl = document.getElementById("history");
+const targetInfo = document.getElementById("targetInfo");
+const status = document.getElementById("status");
+const timerInfo = document.getElementById("timerInfo");
+const historyInfo = document.getElementById("historyInfo");
 const pointsEl = document.getElementById("points");
-const quizEl = document.getElementById("quiz");
-const endMessageEl = document.getElementById("endMessage");
+const quizBox = document.getElementById("quizBox");
+const reader = document.getElementById("reader");
 
-// START GRY
-startBtn.addEventListener("click", () => {
-  gameState = "QUIZ";
-  screenInit.style.display = "none";
-  screenGame.style.display = "block";
-  nextRound();
-});
+/* ===================== HISTORIA ===================== */
 
-// GENEROWANIE NASTĘPNEGO KODU
-function generateNextCode() {
-  const available = CODES.filter(c => c !== lastCode);
-  currentCode = available[Math.floor(Math.random() * available.length)];
-  lastCode = currentCode;
+function updateHistory() {
+  historyInfo.innerText = "Historia: " + previousTargets.join(" → ");
 }
 
-// QUIZ
-function generateQuiz() {
-  document.getElementById("reader").style.display = "none";
-  const a = rand(), b = rand(), c = rand(), d = rand();
-  const ops = ["+","-","*","/"];
-  const op1 = ops[rand(0,3)];
-  const op2 = ops[rand(0,3)];
+/* ===================== LOSOWANIE KODU ===================== */
 
-  const left = evalExpr(a,op1,b);
-  const right = evalExpr(c,op2,d);
+function pickNextTarget() {
+  const available = CODES.filter(c => c !== currentTarget);
+  currentTarget = available[Math.floor(Math.random() * available.length)];
+  previousTargets.push(currentTarget);
+
+  targetInfo.innerText = `Następny kod: ${currentTarget}`;
+  updateHistory();
+}
+
+/* ===================== QUIZ ===================== */
+
+function generateQuiz() {
+  gameState = "QUIZ";
+  reader.style.display = "none";
+  quizBox.innerHTML = "";
+  timerInfo.innerText = "";
+
+  const a = rand();
+  const b = rand();
+  const c = rand();
+  const d = rand();
+
+  const op1 = randOp();
+  const op2 = randOp();
+
+  const left = evalSafe(a, op1, b);
+  const right = evalSafe(c, op2, d);
 
   const correct = left > right ? ">" : "<";
 
-  quizEl.innerHTML = `
-    <h2>${a} ${op1} ${b} ? ${c} ${op2} ${d}</h2>
-    <button onclick="answerQuiz('<')">&lt;</button>
-    <button onclick="answerQuiz('>')">&gt;</button>
+  quizBox.innerHTML = `
+    <p class="big">${a} ${op1} ${b} ? ${c} ${op2} ${d}</p>
+    <button onclick="quizAnswer('>','${correct}')">&gt;</button>
+    <button onclick="quizAnswer('<','${correct}')">&lt;</button>
   `;
-
-  function answerQuiz(choice){
-    if(choice === correct){
-      startScanPhase();
-    } else {
-      failRound();
-    }
-  }
-  window.answerQuiz = answerQuiz; // expose function
 }
 
-// SCAN
-function startScanPhase() {
-  gameState = "SCAN";
-  quizEl.innerHTML = "";
-  document.getElementById("reader").style.display = "block";
-  nextCodeEl.innerText = `Skanuj kod: ${currentCode}`;
-  updateHistoryDisplay();
-  startTimer(5);
-  if(html5QrCode) html5QrCode.stop().catch(()=>{});
-  html5QrCode = new Html5Qrcode("reader");
-  html5QrCode.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 700 },
-    onScanSuccess,
-    ()=>{}
-  );
-}
-
-function onScanSuccess(decodedText){
-  const url = new URL(decodedText, window.location.href);
-  const code = url.searchParams.get("code");
-  const start = url.searchParams.get("start");
-
-  if(start==="1"){
-    endGame("Gra zakończona kodem STOP.");
-    return;
-  }
-
-  if(gameState !== "SCAN") return;
-
-  if(code === currentCode){
-    points++;
-    historyIndex++;
-    history[historyIndex] = currentCode; // zapisujemy aktualny skan w historii
-    pointsEl.innerText = `Punkty: ${points}`;
-
-   stopTimer();
-    html5QrCode.stop().then(() => {
-    nextRound(); // teraz przechodzimy do quizu dla kolejnego kodu
-  });
-}
-
-// KOLEJNA RUNDA
-function nextRound(){
-  stopTimer();
-  if(points>=maxPoints){
-    endGame("Wygrana! Zdobyłeś 5 punktów.");
-    return;
-  }
-  generateNextCode(); // generujemy nowy kod dopiero tutaj
-  updateHistoryDisplay(); // historia od razu pokazuje zeskanowane kody
-  generateQuiz();
-}
-
-// FAIL (zła odpowiedź w quizie lub timeout)
-function failRound(){
-  stopTimer();
-  points = Math.max(0, points-1);
-  pointsEl.innerText = `Punkty: ${points}`;
-
-  if(historyIndex>=0){
-    currentCode = history[historyIndex]; // cofamy do poprzedniego skanu
-    historyIndex--; // ustawienie indeksu tak, aby kolejny sukces posuwał go prawidłowo
+function quizAnswer(answer, correct) {
+  if(answer === correct) {
+    status.innerText = "Dobrze! Skanuj kod.";
     startScanPhase();
   } else {
-    endGame("Gra zakończona, nie udało się zdobyć punktów.");
+    status.innerText = "Błąd w quizie – cofanie";
+    handleFail();
   }
 }
 
-// TIMER
-function startTimer(seconds){
-  timeLeft = seconds;
-  document.getElementById("timer").textContent = timeLeft;
-  timer = setInterval(()=>{
-    timeLeft--;
-    document.getElementById("timer").textContent = timeLeft;
-    if(timeLeft<=0){
-      failRound();
+/* ===================== SKAN ===================== */
+
+function startScanPhase() {
+  gameState = "SCAN";
+  quizBox.innerHTML = "";
+  reader.style.display = "block";
+  startCountdown();
+
+  if(!html5QrCode) {
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 150 },
+      onScan,
+      ()=>{}
+    );
+  }
+}
+
+function onScan(text) {
+  if(gameState !== "SCAN") return;
+
+  const url = new URL(text, window.location.href);
+  const code = url.searchParams.get("code");
+
+  if(code === currentTarget) {
+    clearInterval(countdownInterval);
+    points++;
+    pointsEl.innerText = points;
+    status.innerText = "DOBRZE!";
+
+    if(points >= 5) {
+      endGame("Wygrana! 5 punktów");
+    } else {
+      pickNextTarget();
+      generateQuiz();
+    }
+  }
+}
+
+/* ===================== CZAS ===================== */
+
+function startCountdown() {
+  clearInterval(countdownInterval);
+  countdown = 5;
+  timerInfo.innerText = `Czas: ${countdown}s`;
+
+  countdownInterval = setInterval(() => {
+    countdown--;
+    timerInfo.innerText = `Czas: ${countdown}s`;
+    if(countdown <= 0) {
+      clearInterval(countdownInterval);
+      handleFail();
     }
   },1000);
 }
 
-function stopTimer(){
-  clearInterval(timer);
-  timer=null;
+/* ===================== COFANIE ===================== */
+
+function handleFail() {
+  if(previousTargets.length <= 1) {
+    endGame("Porażka – brak punktów");
+    return;
+  }
+
+  previousTargets.pop();
+  currentTarget = previousTargets[previousTargets.length - 1];
+  if(points > 0) points--;
+  pointsEl.innerText = points;
+
+  updateHistory();
+  targetInfo.innerText = `Powtórz kod: ${currentTarget}`;
+  generateQuiz();
 }
 
-// HISTORIA
-function updateHistoryDisplay(){
-  historyEl.innerText = "Historia: " + history.slice(0, historyIndex+1).join(" > ");
+/* ===================== KONIEC ===================== */
+
+function endGame(msg) {
+  gameState = "FINISHED";
+  document.getElementById("screen-game").style.display = "none";
+  document.getElementById("screen-end").style.display = "block";
+  document.getElementById("endMessage").innerText = msg;
+  if(html5QrCode) html5QrCode.stop();
+  clearInterval(countdownInterval);
 }
 
-// KONIEC GRY
-function endGame(msg){
-  gameState="END";
-  stopTimer();
-  if(html5QrCode) html5QrCode.stop().catch(()=>{});
-  screenGame.style.display="none";
-  screenEnd.style.display="block";
-  endMessageEl.innerText = msg;
-}
+/* ===================== START ===================== */
 
-// POMOCNICZE
-function rand(min=1,max=9){return Math.floor(Math.random()*(max-min+1))+min;}
-function evalExpr(a,op,b){if(op==="/"&&b===0)return Infinity; return eval(`${a}${op}${b}`);}
+startBtn.onclick = () => {
+  document.getElementById("screen-init").style.display = "none";
+  document.getElementById("screen-game").style.display = "block";
+  pickNextTarget();
+  generateQuiz();
+};
+
+/* ===================== NARZĘDZIA ===================== */
+
+function rand() { return Math.floor(Math.random()*9)+1; }
+function randOp() { return ["+","-","*","/"][Math.floor(Math.random()*4)]; }
+function evalSafe(a,op,b) {
+  if(op==="/") return a/b;
+  if(op==="*") return a*b;
+  if(op==="+") return a+b;
+  return a-b;
+}
 </script>
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-

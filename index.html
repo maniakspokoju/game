@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Mini gra QR + Quiz  – etap 8</title>
+<title>Gra QR + Quiz - etap 8</title>
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
@@ -16,7 +16,7 @@
 
 <body>
 
-<h1>Mini gra QR + Quiz  – etap 8</h1>
+<h1>Gra QR + Quiz - etap 8</h1>
 
 <div id="screen-init">
   <p class="info">Gotowy?</p>
@@ -43,35 +43,52 @@
 </div>
 
 <script>
+/* ================== STAŁE ================== */
 const CODES = ["A","B","C"];
+const SCAN_TIME = 5;
+const WIN_POINTS = 5;
+
+/* ================== STAN ================== */
 let currentTarget = null;
 let history = [];
 let points = 0;
+let timeLeft = SCAN_TIME;
 let timerInterval = null;
-let timeLeft = 5;
-let correctQuizAnswer = null;
 let html5QrCode = null;
+let correctQuizAnswer = null;
 
+/* ================== ELEMENTY ================== */
 const targetEl = document.getElementById("target");
 const timerEl = document.getElementById("timer");
 const pointsEl = document.getElementById("points");
 const historyEl = document.getElementById("history");
 const statusEl = document.getElementById("status");
 
+/* ================== UI ================== */
+function show(screen) {
+  ["screen-init","screen-quiz","screen-game","screen-end"]
+    .forEach(id => document.getElementById(id).style.display = "none");
+  document.getElementById(screen).style.display = "block";
+}
+
 function updateHistory() {
   historyEl.innerText = "Historia: " + history.join(" → ");
 }
 
+/* ================== ZAKOŃCZENIE ================== */
 function endGame(msg) {
   clearInterval(timerInterval);
-  if (html5QrCode) html5QrCode.stop();
-  document.getElementById("screen-game").style.display = "none";
-  document.getElementById("screen-quiz").style.display = "none";
-  document.getElementById("screen-end").style.display = "block";
+  if (html5QrCode) {
+    html5QrCode.stop().catch(()=>{});
+  }
+  show("screen-end");
   document.getElementById("endMessage").innerText = msg;
 }
 
+/* ================== COFANIE ================== */
 function rollback() {
+  clearInterval(timerInterval);
+
   points = Math.max(0, points - 1);
   pointsEl.innerText = points;
 
@@ -85,12 +102,14 @@ function rollback() {
   currentTarget = history[history.length - 1];
   targetEl.innerText = currentTarget;
   updateHistory();
+
   startScanPhase();
 }
 
+/* ================== TIMER ================== */
 function startTimer() {
   clearInterval(timerInterval);
-  timeLeft = 5;
+  timeLeft = SCAN_TIME;
   timerEl.innerText = timeLeft;
 
   timerInterval = setInterval(() => {
@@ -103,6 +122,7 @@ function startTimer() {
   }, 1000);
 }
 
+/* ================== SKANER ================== */
 function startScanner() {
   html5QrCode = new Html5Qrcode("reader");
   html5QrCode.start(
@@ -114,15 +134,17 @@ function startScanner() {
 
       if (code === currentTarget) {
         clearInterval(timerInterval);
-        html5QrCode.stop();
-        points++;
-        pointsEl.innerText = points;
-        statusEl.innerText = "DOBRZE!";
-        if (points >= 5) {
-          endGame("Wygrana!");
-        } else {
-          nextTarget();
-        }
+        html5QrCode.stop().then(() => {
+          points++;
+          pointsEl.innerText = points;
+          statusEl.innerText = "DOBRZE!";
+
+          if (points >= WIN_POINTS) {
+            endGame("Wygrana!");
+          } else {
+            nextTarget(); // ZAWSZE quiz
+          }
+        });
       } else {
         statusEl.innerText = "Szukaj dalej...";
       }
@@ -130,14 +152,15 @@ function startScanner() {
   );
 }
 
+/* ================== FAZA SKANOWANIA ================== */
 function startScanPhase() {
-  document.getElementById("screen-quiz").style.display = "none";
-  document.getElementById("screen-game").style.display = "block";
+  show("screen-game");
   statusEl.innerText = "";
   startTimer();
   startScanner();
 }
 
+/* ================== QUIZ ================== */
 function generateQuiz() {
   let left, right;
   const ops = ["+","-","*","/"];
@@ -160,7 +183,7 @@ function generateQuiz() {
 }
 
 function answerQuiz(ans) {
-  document.getElementById("screen-quiz").style.display = "none";
+  show("screen-game");
   if (ans !== correctQuizAnswer) {
     rollback();
   } else {
@@ -168,21 +191,26 @@ function answerQuiz(ans) {
   }
 }
 
+/* ================== NOWY CEL ================== */
 function nextTarget() {
+  if (html5QrCode) {
+    html5QrCode.stop().catch(()=>{});
+  }
+
   const available = CODES.filter(c => c !== currentTarget);
   currentTarget = available[Math.floor(Math.random()*available.length)];
+
   history.push(currentTarget);
   targetEl.innerText = currentTarget;
   updateHistory();
 
-  if (html5QrCode) html5QrCode.stop();
-  document.getElementById("screen-game").style.display = "none";
-  document.getElementById("screen-quiz").style.display = "block";
+  show("screen-quiz");
   generateQuiz();
 }
 
+/* ================== START ================== */
 document.getElementById("startBtn").onclick = () => {
-  document.getElementById("screen-init").style.display = "none";
+  show("screen-quiz");
   nextTarget();
 };
 </script>

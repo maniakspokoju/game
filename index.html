@@ -16,7 +16,7 @@
 
 <body>
 
-<h1>Mini gra QR - 9.1</h1>
+<h1>Mini gra QR - 9.1.2</h1>
 
 <div id="screen-init">
   <p>Zeskanowałeś kod startowy.</p>
@@ -181,19 +181,27 @@ function startCountdown() {
 /* ===================== COFANIE ===================== */
 
 function handleFail() {
+  clearInterval(countdownInterval);
+
   if(previousTargets.length <= 1) {
     endGame("Porażka – brak punktów");
     return;
   }
 
+  // cofamy historię
   previousTargets.pop();
   currentTarget = previousTargets[previousTargets.length - 1];
+
+  // odejmujemy punkt
   if(points > 0) points--;
   pointsEl.innerText = points;
 
   updateHistory();
   targetInfo.innerText = `Powtórz kod: ${currentTarget}`;
-  generateQuiz();
+  status.innerText = "Cofnięcie – zeskanuj ponownie";
+
+  // ❗ KLUCZOWA ZMIANA
+  startScanPhase();   // ✅ ZAWSZE WRACAMY DO SKANU
 }
 
 /* ===================== KONIEC ===================== */
@@ -230,5 +238,6 @@ function evalSafe(a,op,b) {
 
 </body>
 </html>
+
 
 

@@ -52,7 +52,7 @@ let countdown = 5;
 let countdownInterval;
 let html5QrCode;
 
-let scanLocked = false;                                         //ZMIANA   <<----------
+//let scanLocked = false;                                         //ZMIANA   <<----------
 
 let phase = "QUIZ";
 
@@ -93,8 +93,8 @@ function generateQuiz() {
   quizBox.innerHTML = "";
   timerInfo.innerText = "";
 
-  let left, right;                                            //ZMIANA   <<----------
-  do {                                                        //ZMIANA   <<----------
+  //let left, right;                                            //ZMIANA   <<----------
+ // do {                                                        //ZMIANA   <<----------
   const a = rand();
   const b = rand();
   const c = rand();
@@ -105,7 +105,7 @@ function generateQuiz() {
 
   left = evalSafe(a, op1, b);
   right = evalSafe(c, op2, d);
-} while (left === right); // powtarzamy, aż będą różne              //ZMIANA   <<----------
+//} while (left === right); // powtarzamy, aż będą różne              //ZMIANA   <<----------
 
 const correct = left > right ? ">" : "<";
 
@@ -130,7 +130,7 @@ function quizAnswer(answer, correct) {
 
 function startScanPhase() {
 
-  scanLocked = false;                                     //ZMIANA   <<----------
+//  scanLocked = false;                                     //ZMIANA   <<----------
   
   gameState = "SCAN";
   quizBox.innerHTML = "";
@@ -150,8 +150,8 @@ function startScanPhase() {
 
 function onScan(text) {
 
-   if (scanLocked) return;                                  //ZMIANA   <<----------
-    scanLocked = true;                                    //ZMIANA   <<----------
+ //  if (scanLocked) return;                                  //ZMIANA   <<----------
+ //   scanLocked = true;                                    //ZMIANA   <<----------
   
   if(gameState !== "SCAN") return;
 
@@ -164,9 +164,9 @@ function onScan(text) {
     pointsEl.innerText = points;
     status.innerText = "DOBRZE!";
 
-    if (html5QrCode) {                                       //ZMIANA   <<----------
-      html5QrCode.stop();                                 //ZMIANA   <<----------
-      html5QrCode = null;                                   //ZMIANA   <<----------
+  //  if (html5QrCode) {                                       //ZMIANA   <<----------
+  //    html5QrCode.stop();                                 //ZMIANA   <<----------
+  //    html5QrCode = null;                                   //ZMIANA   <<----------
 }
     
     if(points >= 5) {
@@ -255,6 +255,7 @@ function evalSafe(a,op,b) {
 
 </body>
 </html>
+
 
 
 
